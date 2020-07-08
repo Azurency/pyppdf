@@ -11,7 +11,7 @@ from typing import Union
 from litereval import litereval, merge, get_args
 # noinspection PyUnresolvedReferences
 from .patch_pyppeteer import patch_pyppeteer
-from pyppeteer import launch
+from pyppeteer import launch, connect
 from pyppeteer.errors import PageError
 
 
@@ -34,8 +34,8 @@ def docstr_defaults(func, i: int):
         re.DOTALL)[i])
 
 
-async def main(args: dict, url: str=None, html: str=None, output_file: str=None,
-               goto: str=None, dir_: str=None) -> bytes:
+async def main(args: dict, url: str = None, html: str = None, output_file: str = None,
+               goto: str = None, dir_: str = None, browser_url: str = None) -> bytes:
     """
     Returns bytes of pdf.
 
@@ -112,7 +112,10 @@ async def main(args: dict, url: str=None, html: str=None, output_file: str=None,
             )
 
     url = get_url()
-    browser = await launch(*_launch.args, **_launch.kwargs)
+    if browser_url:
+        browser = await connect({'browserWSEndpoint': browser_url})
+    else:
+        browser = await launch(*_launch.args, **_launch.kwargs)
     page = await browser.newPage()
     procs = psutil.Process().children(recursive=True)
 
@@ -177,10 +180,10 @@ async def main(args: dict, url: str=None, html: str=None, output_file: str=None,
         raise e
 
 
-def save_pdf(output_file: str=None, url: str=None, html: str=None,
-             args_dict: Union[str, dict]=None,
-             args_upd: Union[str, dict]=None,
-             goto: str=None, dir_: str=None) -> bytes:
+def save_pdf(output_file: str = None, url: str = None, html: str = None,
+             args_dict: Union[str, dict] = None,
+             args_upd: Union[str, dict] = None,
+             goto: str = None, dir_: str = None, browser_url: str = None) -> bytes:
     """
     Converts html document to pdf via pyppeteer
     and writes to disk if asked. Also returns bytes of pdf.
@@ -245,19 +248,22 @@ def save_pdf(output_file: str=None, url: str=None, html: str=None,
     elif isinstance(args_dict, str):
         args_dict = litereval(args_dict)
     if not isinstance(args_dict, dict):
-        raise TypeError(f'Invalid pyppdf `args_dict` arg (should be a dict): {args_dict}')
+        raise TypeError(
+            f'Invalid pyppdf `args_dict` arg (should be a dict): {args_dict}')
 
     if args_upd is not None:
-        args_upd = litereval(args_upd) if isinstance(args_upd, str) else args_upd
+        args_upd = litereval(args_upd) if isinstance(
+            args_upd, str) else args_upd
         if not isinstance(args_upd, dict):
-            raise TypeError(f'Invalid pyppdf `args_upd` arg (should be a dict): {args_upd}')
+            raise TypeError(
+                f'Invalid pyppdf `args_upd` arg (should be a dict): {args_upd}')
         args_dict = merge(args_upd, args_dict, copy=True)
 
     return asyncio.get_event_loop().run_until_complete(
         main(args=args_dict, url=url, html=html,
-             output_file=output_file, goto=goto, dir_=dir_)
+             output_file=output_file, goto=goto, dir_=dir_, browser_url=browser_url)
     )
-    
+
 
 ARGS_DICT = docstr_defaults(save_pdf, 0)
 GOTO = litereval(docstr_defaults(main, 0))
@@ -298,5 +304,5 @@ def cli(page, args_dict, args_upd, out, dir_, goto):
                    goto=goto, url=url, html=html, dir_=dir_)
     if not out:
         import base64
-        sys.stdout.write('data:application/pdf;base64,' + 
+        sys.stdout.write('data:application/pdf;base64,' +
                          base64.b64encode(ret).decode("utf-8"))
