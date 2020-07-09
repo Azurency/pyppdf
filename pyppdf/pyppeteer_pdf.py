@@ -143,7 +143,10 @@ async def main(args: dict, url: str = None, html: str = None, output_file: str =
                 pass
         await page.close()
         try:
-            await browser.close()
+            if browser_url:
+                await browser.disconnect()
+            else:
+                await browser.close()
         except Exception:
             traceback.print_exc(file=sys.stderr)
         gone, still_alive = psutil.wait_procs(procs, timeout=1)
@@ -167,7 +170,10 @@ async def main(args: dict, url: str = None, html: str = None, output_file: str =
         except Exception:
             pass
         try:
-            await browser.close()
+            if browser_url:
+                await browser.disconnect()
+            else:
+                await browser.close()
         except Exception:
             pass
         gone, still_alive = psutil.wait_procs(procs, timeout=1)
