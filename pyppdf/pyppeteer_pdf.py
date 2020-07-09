@@ -132,12 +132,18 @@ async def main(args: dict, url: str = None, html: str = None, output_file: str =
 
         if temp_file:
             os.remove(temp_file)
-        await browser.close()
+        if browser_url:
+            await browser.disconnect()
+        else:
+            await browser.close()
         return ret
     except Exception as e:
         if temp_file:
             os.remove(temp_file)
-        await browser.close()
+        if browser_url:
+            await browser.disconnect()
+        else:
+            await browser.close()
         raise e
 
 
