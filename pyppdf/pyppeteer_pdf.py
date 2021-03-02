@@ -113,7 +113,10 @@ async def main(args: dict, url: str = None, html: str = None, output_file: str =
 
     url = get_url()
     if browser_url:
-        browser = await connect({'browserURL': browser_url})
+        if browser_url.startswith('ws'):
+            browser = await connect({'browserWSEndpoint': browser_url})
+        else:
+            browser = await connect({'browserURL': browser_url})
     else:
         browser = await launch(*_launch.args, **_launch.kwargs)
     page = await browser.newPage()
