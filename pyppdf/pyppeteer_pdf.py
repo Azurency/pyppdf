@@ -8,7 +8,7 @@ import pathlib
 import asyncio
 import re
 from typing import Union
-from litereval import litereval, merge, get_args
+from .litereval import get_args
 # noinspection PyUnresolvedReferences
 from .patch_pyppeteer import patch_pyppeteer
 from pyppeteer import launch, connect
@@ -239,79 +239,59 @@ def save_pdf(output_file: str = None, url: str = None, html: str = None,
         (url has priority over html).
     args_dict :
         Options that govern conversion.
-        dict with pyppeteer kwargs or Python code str that would
-        be "litereval" evaluated to the dictionary.
-        If None then default values are used.
-        Supports extended dict syntax: {foo=100, bar='yes'}.
-    args_upd :
-        dict with *additional* pyppeteer kwargs or Python code str
-        that would be "litereval" evaluated to the dictionary.
-        This dict would be recursively merged into args_dict.
+        dict with pyppeteer kwargs.
     goto :
         Same as in 'main' function.
     dir_ :
         Directory for goto temp mode.
     """
-    if args_dict is None:
-        args_dict = litereval(ARGS_DICT)
-    elif isinstance(args_dict, str):
-        args_dict = litereval(args_dict)
-    if not isinstance(args_dict, dict):
+    if not args_dict and not isinstance(args_dict, dict):
         raise TypeError(
             f'Invalid pyppdf `args_dict` arg (should be a dict): {args_dict}')
-
-    if args_upd is not None:
-        args_upd = litereval(args_upd) if isinstance(
-            args_upd, str) else args_upd
-        if not isinstance(args_upd, dict):
-            raise TypeError(
-                f'Invalid pyppdf `args_upd` arg (should be a dict): {args_upd}')
-        args_dict = merge(args_upd, args_dict, copy=True)
 
     return asyncio.get_event_loop().run_until_complete(
         main(args=args_dict, url=url, html=html,
              output_file=output_file, goto=goto, dir_=dir_, browser_url=browser_url)
     )
 
+# ARGS_DICT = docstr_defaults(save_pdf, 0)
+# GOTO = litereval(docstr_defaults(main, 0))
+# GOTO_HELP = docstr_defaults(main, 1)
 
-ARGS_DICT = docstr_defaults(save_pdf, 0)
-GOTO = litereval(docstr_defaults(main, 0))
-GOTO_HELP = docstr_defaults(main, 1)
 
+# @click.command(help=f"""Reads html document, converts it to pdf via
+# pyppeteer and writes to disk (or writes base64 encoded pdf to stdout).
 
-@click.command(help=f"""Reads html document, converts it to pdf via
-pyppeteer and writes to disk (or writes base64 encoded pdf to stdout).
+# PAGE is an URL or a common file path, pyppdf reads from stdin if PAGE
+# is not set.
 
-PAGE is an URL or a common file path, pyppdf reads from stdin if PAGE
-is not set.
+# -a, --args defaults:
 
--a, --args defaults:
+# {re.sub(r'^ +', '', ARGS_DICT, flags=re.MULTILINE)}
 
-{re.sub(r'^ +', '', ARGS_DICT, flags=re.MULTILINE)}
+# They affect the following pyppeteer methods (only the last name should
+# be used):  pyppeteer.launch, page.goto, page.emulateMedia, page.waitForNavigation,
+# page.waitFor, page.pdf. See:
 
-They affect the following pyppeteer methods (only the last name should
-be used):  pyppeteer.launch, page.goto, page.emulateMedia, page.waitForNavigation,
-page.waitFor, page.pdf. See:
-
-https://pyppeteer.github.io/pyppeteer/reference.html#pyppeteer.page.Page.pdf
-""")
-@click.argument('page', type=str, default=None, required=False)
-@click.option('-a', '--args', 'args_dict', type=str, default=None,
-              help='Python code str that would be evaluated to the dictionary ' +
-                   'that is a pyppeteer functions options. Has predefined defaults.')
-@click.option('-u', '--upd', 'args_upd', type=str, default=None,
-              help="Same as --args dict but --upd dict is recursively merged into --args.")
-@click.option('-o', '--out', type=str, default=None,
-              help='Output file path. If not set then pyppdf writes base64 encoded pdf to stdout.')
-@click.option('-d', '--dir', 'dir_', type=str, default=None,
-              help="Directory for '--goto temp' mode. Has priority over dir of the --out")
-@click.option('-g', '--goto', type=click.Choice(list(GOTO)), default=None,
-              help=GOTO_HELP.replace('\r', '').replace('\n', ' '))
-def cli(page, args_dict, args_upd, out, dir_, goto):
-    url, html = (page, None) if page else (None, sys.stdin.read())
-    ret = save_pdf(output_file=out, args_dict=args_dict, args_upd=args_upd,
-                   goto=goto, url=url, html=html, dir_=dir_)
-    if not out:
-        import base64
-        sys.stdout.write('data:application/pdf;base64,' +
-                         base64.b64encode(ret).decode("utf-8"))
+# https://pyppeteer.github.io/pyppeteer/reference.html#pyppeteer.page.Page.pdf
+# """)
+# @click.argument('page', type=str, default=None, required=False)
+# @click.option('-a', '--args', 'args_dict', type=str, default=None,
+#               help='Python code str that would be evaluated to the dictionary ' +
+#                    'that is a pyppeteer functions options. Has predefined defaults.')
+# @click.option('-u', '--upd', 'args_upd', type=str, default=None,
+#               help="Same as --args dict but --upd dict is recursively merged into --args.")
+# @click.option('-o', '--out', type=str, default=None,
+#               help='Output file path. If not set then pyppdf writes base64 encoded pdf to stdout.')
+# @click.option('-d', '--dir', 'dir_', type=str, default=None,
+#               help="Directory for '--goto temp' mode. Has priority over dir of the --out")
+# @click.option('-g', '--goto', type=click.Choice(list(GOTO)), default=None,
+#               help=GOTO_HELP.replace('\r', '').replace('\n', ' '))
+# def cli(page, args_dict, args_upd, out, dir_, goto):
+#     url, html = (page, None) if page else (None, sys.stdin.read())
+#     ret = save_pdf(output_file=out, args_dict=args_dict, args_upd=args_upd,
+#                    goto=goto, url=url, html=html, dir_=dir_)
+#     if not out:
+#         import base64
+#         sys.stdout.write('data:application/pdf;base64,' +
+#                          base64.b64encode(ret).decode("utf-8"))
